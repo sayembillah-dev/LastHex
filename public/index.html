@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>Laser Drop · blind multiplayer laser arena</title>
+  <meta name="description" content="Hide, aim, fire. A blind multiplayer laser duel on a shrinking hex arena. Free, in your browser, on any device.">
+  <meta name="theme-color" content="#16232b">
+  <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Laser Drop">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Laser Drop">
+  <meta property="og:description" content="You've been invited to a blind laser duel. Hide, aim, fire. Last one standing wins.">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <link rel="modulepreload" href="/vendor/three.module.min.js">
+  <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="c" aria-label="Game arena"></canvas>
+  <div id="labels"></div>
+
+  <section id="menu" class="panel" aria-label="Main menu">
+    <h1>LASER DROP</h1>
+    <p class="sub">Hide. Aim. Fire. Last one standing wins.</p>
+    <input id="nick" maxlength="16" placeholder="Your nickname" autocomplete="nickname" enterkeyhint="go" aria-label="Nickname">
+    <div id="custom">
+      <div class="label-sm">Color</div>
+      <div id="colors" class="opts"></div>
+      <div class="label-sm">Hat</div>
+      <div id="hats" class="opts"></div>
+    </div>
+    <div class="row">
+      <button id="quick" class="primary">Quick Play</button>
+      <button id="create">Create Room</button>
+    </div>
+    <details id="howto">
+      <summary>How to play</summary>
+      <ol>
+        <li>Roam the arena with everyone until the host hits <b>Start</b>.</li>
+        <li>Everyone turns <b>invisible</b>. You get <b>3 seconds</b> to move and aim.</li>
+        <li>All positions are revealed and every laser fires at once.</li>
+        <li>Hit = out. The floor shrinks. Repeat until one is left.</li>
+      </ol>
+      <p class="sub keys-desktop">Move: <kbd>WASD</kbd> / <kbd>arrows</kbd> · Aim: mouse</p>
+      <p class="sub keys-touch">Move: left stick · Aim: right stick</p>
+    </details>
+    <div class="list-head">Public rooms <button id="refresh" class="small" aria-label="Refresh room list">↻</button></div>
+    <ul id="roomList" aria-live="polite"></ul>
+    <p class="foot">v1.0</p>
+  </section>
+
+  <section id="lobby" class="card hidden collapsed" aria-label="Room">
+    <div class="card-head">
+      <div class="grow">
+        <h2 id="roomName"></h2>
+        <p class="sub">Code <b id="roomCode"></b> · <button id="copyLink" class="small">Invite</button></p>
+      </div>
+      <button id="moreToggle" class="small" aria-label="Show or hide room details">☰</button>
+    </div>
+    <ul id="playerList"></ul>
+    <div class="row">
+      <button id="start" class="primary">Start</button>
+      <button id="addBot" class="small">+ Bot</button>
+      <button id="removeBots" class="small">− Bots</button>
+    </div>
+    <div class="row more">
+      <button id="customToggle" class="small">Customize</button>
+      <button id="leave" class="small">Leave</button>
+    </div>
+    <div id="customSlot" class="hidden"></div>
+    <p id="lobbyHint" class="sub more"></p>
+  </section>
+
+  <section id="hud" class="hidden">
+    <div id="topbar">
+      <div id="strip"></div>
+      <button id="quit" class="small" aria-label="Leave room">✕</button>
+    </div>
+    <div id="timerWrap"><div id="timerBar"></div></div>
+    <div id="round"></div>
+    <div id="center" aria-live="assertive"></div>
+    <div id="sub"></div>
+    <div id="feed"></div>
+    <div id="joyL" class="joy hidden"><i></i></div>
+    <div id="joyR" class="joy aim hidden"><i></i></div>
+  </section>
+
+  <section id="results" class="hidden" aria-label="Match results">
+    <div class="res-card">
+      <div id="resTitle"></div>
+      <div id="resSub" class="sub"></div>
+      <ol id="resList"></ol>
+      <div class="sub">Back to the arena in a moment…</div>
+    </div>
+  </section>
+
+  <div id="tools">
+    <button id="soundBtn" class="icon" aria-label="Toggle sound">🔊</button>
+    <button id="fsBtn" class="icon" aria-label="Toggle fullscreen">⛶</button>
+  </div>
+
+  <div id="inviteBox" class="hidden" role="dialog" aria-label="Invite link">
+    <div class="res-card">
+      <b>Invite friends</b>
+      <p class="sub">Copy this link and send it. Long-press the box to copy.</p>
+      <input id="inviteUrl" readonly>
+      <div class="row"><button id="inviteClose" class="primary">Done</button></div>
+    </div>
+  </div>
+  <div id="flash"></div>
+  <div id="conn" class="hidden" role="status"><span class="spin"></span><span id="connText">Connecting…</span></div>
+  <div id="toast" class="hidden" role="status"></div>
+  <div id="fatal" class="hidden"></div>
+
+  <noscript><p style="padding:24px">Laser Drop needs JavaScript enabled.</p></noscript>
+  <script src="/socket.io/socket.io.min.js"></script>
+  <script type="module" src="client.js"></script>
+</body>
+</html>

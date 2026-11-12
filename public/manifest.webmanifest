@@ -1,0 +1,11 @@
+{
+  "name": "Laser Drop",
+  "short_name": "Laser Drop",
+  "description": "Blind multiplayer laser arena on a shrinking hex floor.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#16232b",
+  "theme_color": "#16232b",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
