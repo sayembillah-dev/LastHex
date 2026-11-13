@@ -18,6 +18,12 @@ npm start          # production mode
 
 Phones on the same Wi-Fi: `http://<your-computer-ip>:3000` (`ipconfig getifaddr en1` on a Mac for Wi-Fi).
 
+## Characters & chat
+- 5 customization slots: **color** (10), **outfit** (8: classic, suit, ninja, astronaut, knight, robot, pirate, hoodie), **face** (6), **hat** (12), **back** (7: backpack, cape, jetpack, wings, sword, flag), plus 🎲 random.
+- Animated parts: walking legs, spinning propeller, jetpack flames, flapping wings, cape and flag.
+- Static parts of each character are merged into one mesh per material (~6–9 draw calls per character), so detail stays cheap on phones.
+- Room chat in the lobby card (Enter to chat on desktop, 💬 on phones), speech bubbles over heads, join/leave notices, last 30 messages replayed to late joiners. Rate limited to a burst of 4, then 1 msg/s; 140 chars max.
+
 ## Controls
 - Desktop: **WASD / arrows** move · **mouse** aims
 - Touch: **left stick** moves · **right stick** aims
@@ -45,4 +51,5 @@ Timings, hit radius and round cap are constants at the top of `game.js`.
 - `server.js`: HTTP + Socket.IO, rooms, rate limiting, lifecycle
 - `game.js`: roam → plan → reveal → fire → shrink state machine, blind per-player snapshots, bots, standings
 - `public/hex.js`: hex grid math shared by server and client
-- `public/client.js`: Three.js renderer, input, effects, UI
+- `public/character.js`: character builder (outfits, faces, hats, back items, merged meshes, animation)
+- `public/client.js`: Three.js renderer, input, effects, UI, chat

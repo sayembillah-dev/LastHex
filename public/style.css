@@ -201,3 +201,37 @@ body.roam #quit, body.roam #timerWrap, body.roam #round { display: none; }
 #roomCode { cursor: pointer; }
 #inviteBox { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; padding: 16px; background: rgba(8,12,16,.6); }
 #inviteBox input { font-size: 16px; text-align: center; user-select: all; -webkit-user-select: all; }
+
+/* customizer tabs */
+#custom { margin-top: 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { min-height: 32px; padding: 4px 10px; font-size: 13px; border-radius: 999px; flex: none; }
+.tab.on { background: var(--accent2); border-color: var(--accent2); color: #062a27; font-weight: 700; }
+.tab.dice { margin-left: auto; }
+#lookOpts { min-height: 76px; align-content: flex-start; }
+
+/* chat */
+#chatSec { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+#chatLog { max-height: 150px; min-height: 60px; overflow-y: auto; font-size: 13px; line-height: 1.35; padding-right: 4px;
+  overscroll-behavior: contain; }
+#chatLog li { padding: 2px 0; word-wrap: break-word; }
+#chatLog li.sys { color: var(--muted); font-style: italic; font-size: 12px; }
+#chatForm { display: flex; gap: 6px; margin-top: 6px; }
+#chatForm input { padding: 8px 10px; font-size: 16px; min-width: 0; }
+#chatForm button { flex: none; }
+#chatBtn { display: none; position: relative; }
+.badge { position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 10px; line-height: 17px; font-weight: 700; }
+.card-head { gap: 6px; }
+.bubble { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); max-width: 180px; width: max-content;
+  white-space: normal; background: #fff; color: #172636; font-weight: 600; font-size: 12px; text-shadow: none;
+  padding: 5px 9px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,.35); animation: pop .3s ease-out; transition: opacity .4s; }
+.bubble::after { content: ''; position: absolute; left: 50%; top: 100%; margin-left: -5px; border: 5px solid transparent; border-top-color: #fff; }
+.bubble.out { opacity: 0; }
+@media (max-width: 700px), (max-height: 500px) {
+  #chatBtn { display: block; }
+  .card #chatSec { display: none; }
+  .card.chat-open #chatSec { display: block; }
+  #chatLog { max-height: 96px; }
+}

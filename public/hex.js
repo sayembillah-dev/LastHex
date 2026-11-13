@@ -4,7 +4,12 @@ export const TILE = 1; // hex circumradius in world units
 export const ARENA_RADIUS = 5;
 
 export const COLORS = ['#ff4d4d', '#4da6ff', '#ffd24d', '#5cd65c', '#c77dff', '#ff9f43', '#2ee6d6', '#ff6bcb', '#f5f5f5', '#3d3d4d'];
-export const HATS = ['none', 'cap', 'crown', 'horns', 'antenna', 'halo'];
+export const HATS = ['none', 'cap', 'beanie', 'tophat', 'crown', 'wizard', 'viking', 'chef', 'headphones', 'bunny', 'propeller', 'halo'];
+export const FACES = ['visor', 'eyes', 'happy', 'shades', 'cyclops', 'mask'];
+export const OUTFITS = ['classic', 'suit', 'ninja', 'astro', 'knight', 'robot', 'pirate', 'hoodie'];
+export const BACKS = ['none', 'backpack', 'cape', 'jetpack', 'wings', 'sword', 'flag'];
+export const LOOK_KEYS = ['color', 'outfit', 'face', 'hat', 'back'];
+export const lookKey = (l) => LOOK_KEYS.map((k) => l[k]).join('|');
 
 export function axialToWorld(q, r) {
   return { x: TILE * SQRT3 * (q + r / 2), z: TILE * 1.5 * r };

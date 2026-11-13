@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { buildTiles, axialToWorld, worldToAxial, tileKey, COLORS, HATS } from './hex.js';
+import { buildTiles, axialToWorld, worldToAxial, tileKey, COLORS, HATS, FACES, OUTFITS, BACKS, lookKey } from './hex.js';
+import { makeCharacter, animateCharacter, disposeCharacter, markerGeo } from './character.js';
 
 const $ = (id) => document.getElementById(id);
 const TOUCH = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -20,7 +21,8 @@ document.addEventListener('gesturestart', (e) => e.preventDefault()); // no pinc
 
 const socket = io({ transports: ['websocket'], reconnectionDelay: 500, reconnectionDelayMax: 4000 });
 let myId = null, roomInfo = null, snap = null, lastTiles = '', myAim = 0, winnerText = '';
-const look = store.get('look', { color: COLORS[Math.floor(Math.random() * COLORS.length)], hat: 'cap' });
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const look = { color: pick(COLORS), hat: 'cap', face: 'visor', outfit: 'classic', back: 'none', ...store.get('look', {}) };
 $('nick').value = store.get('nick', '');
 const pendingRoom = new URLSearchParams(location.search).get('room');
 
@@ -92,7 +94,6 @@ const radial = (inner, outer) => canvasTex(64, (g, n) => {
   g.fillRect(0, 0, n, n);
 });
 const glowTex = radial('rgba(46,230,214,0.5)', 'rgba(46,230,214,0)');
-const blobTex = radial('rgba(0,0,0,0.55)', 'rgba(0,0,0,0)');
 const underGlow = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
 underGlow.rotation.x = -Math.PI / 2;
 underGlow.position.y = -15.9;
@@ -237,71 +238,20 @@ function animateTiles(dt, t) {
   if (colored) tileMesh.instanceColor.needsUpdate = true;
 }
 
-// ---------------------------------------------------------------- characters (low-poly, shared geometry + materials)
-const geo = {
-  body: new THREE.CapsuleGeometry(0.3, 0.3, 3, 10),
-  belt: new THREE.CylinderGeometry(0.33, 0.33, 0.08, 10),
-  head: new THREE.BoxGeometry(0.5, 0.42, 0.5),
-  visor: new THREE.BoxGeometry(0.06, 0.15, 0.4),
-  gun: new THREE.BoxGeometry(0.6, 0.13, 0.13),
-  barrel: new THREE.CylinderGeometry(0.045, 0.045, 0.25, 6),
-  tip: new THREE.SphereGeometry(0.06, 8, 6),
-  blob: new THREE.PlaneGeometry(1.1, 1.1),
-  capTop: new THREE.CylinderGeometry(0.27, 0.27, 0.16, 8),
-  capBrim: new THREE.BoxGeometry(0.3, 0.04, 0.42),
-  crown: new THREE.CylinderGeometry(0.26, 0.22, 0.2, 5),
-  horn: new THREE.ConeGeometry(0.08, 0.32, 6),
-  stick: new THREE.CylinderGeometry(0.02, 0.02, 0.35, 4),
-  ball: new THREE.SphereGeometry(0.08, 6, 4),
-  halo: new THREE.TorusGeometry(0.25, 0.04, 6, 16),
-  marker: new THREE.RingGeometry(0.5, 0.62, 24),
-};
+// ---------------------------------------------------------------- characters: see character.js
 const mats = {};
 const mat = (c) => (mats[c] ??= new THREE.MeshLambertMaterial({ color: c }));
-const glow = (c) => (mats['glow' + c] ??= new THREE.MeshBasicMaterial({ color: c }));
-const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false });
-
-function makeCharacter(color, hat) {
-  const g = new THREE.Group();
-  const add = (gm, m, x, y, z, rx = 0, rz = 0) => {
-    const mesh = new THREE.Mesh(gm, m);
-    mesh.position.set(x, y, z);
-    mesh.rotation.set(rx, 0, rz);
-    mesh.castShadow = !TOUCH;
-    g.add(mesh);
-    return mesh;
-  };
-  add(geo.body, mat(color), 0, 0.42, 0);
-  add(geo.belt, mat('#2b2b38'), 0, 0.42, 0);
-  add(geo.head, mat(color), 0, 1.02, 0);
-  add(geo.visor, glow('#9ffcff'), 0.26, 1.04, 0);
-  add(geo.gun, mat('#2b2b38'), 0.4, 0.62, 0);
-  add(geo.barrel, mat('#44445a'), 0.8, 0.62, 0, 0, Math.PI / 2);
-  add(geo.tip, glow(color), 0.94, 0.62, 0);
-  // Soft blob shadow: grounds the character even where real shadows are off (phones).
-  const blob = new THREE.Mesh(geo.blob, blobMat);
-  blob.rotation.x = -Math.PI / 2;
-  blob.position.y = 0.02;
-  blob.renderOrder = -1;
-  g.add(blob);
-  g.userData.blob = blob;
-  const top = 1.23;
-  if (hat === 'cap') { add(geo.capTop, mat('#222831'), 0, top + 0.08, 0); add(geo.capBrim, mat('#222831'), 0.28, top + 0.02, 0); }
-  if (hat === 'crown') add(geo.crown, glow('#ffcc33'), 0, top + 0.1, 0);
-  if (hat === 'horns') { add(geo.horn, mat('#f0e6d2'), 0, top + 0.12, 0.17, 0.45); add(geo.horn, mat('#f0e6d2'), 0, top + 0.12, -0.17, -0.45); }
-  if (hat === 'antenna') { add(geo.stick, mat('#888'), 0, top + 0.17, 0); add(geo.ball, glow('#ff3355'), 0, top + 0.36, 0); }
-  if (hat === 'halo') add(geo.halo, glow('#ffe066'), 0, top + 0.28, 0, Math.PI / 2);
-  return g;
-}
 
 // ---------------------------------------------------------------- menu showcase (your character before joining)
 const showcase = new THREE.Group();
 scene.add(showcase);
+showcase.scale.setScalar(1.35);
 function refreshShowcase() {
+  for (const c of showcase.children) disposeCharacter(c);
   showcase.clear();
   showcase.visible = !roomInfo;
   if (roomInfo) return;
-  const c = makeCharacter(look.color, look.hat);
+  const c = makeCharacter(look, !TOUCH);
   c.rotation.y = -Math.PI / 4;
   showcase.add(c);
 }
@@ -318,18 +268,18 @@ function tileSolidAt(x, z) {
 const ents = new Map();
 const markerMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85 });
 function infoOf(id) {
-  return roomInfo?.players.find((p) => p.id === id) || { nick: '?', color: '#cccccc', hat: 'none' };
+  return roomInfo?.players.find((p) => p.id === id) || { nick: '?', color: '#cccccc', hat: 'none', face: 'visor', outfit: 'classic', back: 'none' };
 }
 function makeEnt(id) {
   const info = infoOf(id);
-  const g = makeCharacter(info.color, info.hat);
+  const g = makeCharacter(info, !TOUCH);
   const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.6, 0.62, 0), new THREE.Vector3(30, 0.62, 0)]);
   const line = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({ color: info.color, dashSize: 0.35, gapSize: 0.2, transparent: true, opacity: 0.9 }));
   line.computeLineDistances();
   line.visible = false;
   g.add(line);
   if (id === myId) {
-    const m = new THREE.Mesh(geo.marker, markerMat);
+    const m = new THREE.Mesh(markerGeo, markerMat);
     m.rotation.x = -Math.PI / 2;
     m.position.y = 0.03;
     g.add(m);
@@ -341,7 +291,7 @@ function makeEnt(id) {
   tag.style.color = info.color;
   tag.textContent = info.nick;
   $('labels').appendChild(tag);
-  const e = { g, line, tag, t: null, pop: 0, dead: false, x: 0, z: 0, a: 0, key: info.color + info.hat };
+  const e = { g, line, tag, t: null, pop: 0, dead: false, x: 0, z: 0, a: 0, key: lookKey(info) };
   ents.set(id, e);
   return e;
 }
@@ -349,6 +299,7 @@ function dropEnt(id) {
   const e = ents.get(id);
   if (!e) return;
   scene.remove(e.g);
+  disposeCharacter(e.g);
   e.line.geometry.dispose();
   e.line.material.dispose();
   e.tag.remove();
@@ -459,7 +410,7 @@ function killEffect(victimId, dirX, dirZ) {
   f.position.copy(p);
   scene.add(f);
   fx.push({ m: f, life: 0.6, max: 0.6, kind: 'flash', grow: 5 });
-  const ring = new THREE.Mesh(geo.marker, addMat(color));
+  const ring = new THREE.Mesh(markerGeo, addMat(color));
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(p.x, 0.05, p.z);
   scene.add(ring);
@@ -541,9 +492,10 @@ const keys = {};
 const KEYMAP = { KeyW: 'u', ArrowUp: 'u', KeyS: 'd', ArrowDown: 'd', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r',
   w: 'u', s: 'd', a: 'l', d: 'r', W: 'u', S: 'd', A: 'l', D: 'r' };
 addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; // typing (chat / nick)
+  if (e.key === 'Enter' && inRoom() && !$('lobby').classList.contains('hidden')) { e.preventDefault(); openChat(); return; }
   const dir = KEYMAP[e.code] || KEYMAP[e.key];
   if (!dir || !inRoom()) return;
-  if (e.target.tagName === 'INPUT') e.target.blur();
   keys[dir] = true;
   e.preventDefault();
 });
@@ -580,7 +532,9 @@ makeStick($('joyR'), (s) => {
   posDirty = true;
 });
 
+let walking = false;
 function walk(dt) {
+  walking = false;
   if (!canMove()) return;
   const sx = (keys.r ? 1 : 0) - (keys.l ? 1 : 0) + moveStick.nx;
   const sy = (keys.u ? 1 : 0) - (keys.d ? 1 : 0) - moveStick.ny;
@@ -594,6 +548,7 @@ function walk(dt) {
   else if (tileSolidAt(nx, myPos.z)) myPos.x = nx;
   else if (tileSolidAt(myPos.x, nz)) myPos.z = nz;
   else return;
+  walking = true;
   if (mousePt) aimAt(mousePt);
   posDirty = true;
 }
@@ -616,24 +571,47 @@ const nick = () => {
   return n;
 };
 
+const LOOK_TABS = [
+  { key: 'color', label: 'Color', list: COLORS },
+  { key: 'outfit', label: 'Outfit', list: OUTFITS },
+  { key: 'face', label: 'Face', list: FACES },
+  { key: 'hat', label: 'Hat', list: HATS },
+  { key: 'back', label: 'Back', list: BACKS },
+];
+const NICE = { tophat: 'Top hat', astro: 'Astronaut', jetpack: 'Jetpack', headphones: 'Phones', none: 'None' };
+const nice = (v) => NICE[v] || v[0].toUpperCase() + v.slice(1);
+let lookTab = 'color';
 function buildCustomizer() {
-  const colors = $('colors'), hats = $('hats');
-  colors.replaceChildren();
-  hats.replaceChildren();
-  for (const c of COLORS) {
+  const tabs = $('lookTabs'), opts = $('lookOpts');
+  tabs.replaceChildren();
+  for (const t of LOOK_TABS) {
     const b = document.createElement('button');
-    b.className = 'swatch' + (c === look.color ? ' on' : '');
-    b.style.background = c;
-    b.setAttribute('aria-label', 'Color ' + c);
-    b.onclick = () => setLook({ color: c });
-    colors.appendChild(b);
+    b.className = 'tab' + (t.key === lookTab ? ' on' : '');
+    b.textContent = t.label;
+    b.onclick = () => { lookTab = t.key; buildCustomizer(); };
+    tabs.appendChild(b);
   }
-  for (const h of HATS) {
+  const dice = document.createElement('button');
+  dice.className = 'tab dice';
+  dice.textContent = '🎲';
+  dice.setAttribute('aria-label', 'Random look');
+  dice.onclick = () => setLook(Object.fromEntries(LOOK_TABS.map((t) => [t.key, pick(t.list)])));
+  tabs.appendChild(dice);
+  opts.replaceChildren();
+  const tab = LOOK_TABS.find((t) => t.key === lookTab);
+  opts.classList.toggle('swatches', tab.key === 'color');
+  for (const v of tab.list) {
     const b = document.createElement('button');
-    b.className = 'hat' + (h === look.hat ? ' on' : '');
-    b.textContent = h;
-    b.onclick = () => setLook({ hat: h });
-    hats.appendChild(b);
+    if (tab.key === 'color') {
+      b.className = 'swatch' + (v === look.color ? ' on' : '');
+      b.style.background = v;
+      b.setAttribute('aria-label', 'Color ' + v);
+    } else {
+      b.className = 'hat' + (v === look[tab.key] ? ' on' : '');
+      b.textContent = nice(v);
+    }
+    b.onclick = () => setLook({ [tab.key]: v });
+    opts.appendChild(b);
   }
 }
 function setLook(change) {
@@ -765,6 +743,65 @@ function updateHud(now) {
   $('joyR').classList.toggle('hidden', !sticks);
 }
 
+// ---------------------------------------------------------------- chat
+let unread = 0;
+const chatVisible = () => !$('lobby').classList.contains('hidden') && (!compact() || $('lobby').classList.contains('chat-open'));
+function setUnread(n) {
+  unread = n;
+  $('chatBadge').textContent = n > 9 ? '9+' : n;
+  $('chatBadge').classList.toggle('hidden', !n);
+}
+function openChat() {
+  if (compact()) $('lobby').classList.add('chat-open');
+  setUnread(0);
+  $('chatInput').focus();
+}
+$('chatBtn').onclick = () => {
+  const card = $('lobby');
+  card.classList.toggle('chat-open');
+  if (card.classList.contains('chat-open')) { setUnread(0); scrollChat(); }
+};
+$('chatInput').addEventListener('focus', () => { for (const k in keys) keys[k] = false; });
+$('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') e.target.blur(); });
+$('chatForm').onsubmit = (e) => {
+  e.preventDefault();
+  const t = $('chatInput').value.trim();
+  if (!t) return;
+  socket.emit('chat', t);
+  $('chatInput').value = '';
+  if (!TOUCH) $('chatInput').blur(); // desktop: straight back to moving
+};
+function scrollChat() { const l = $('chatLog'); l.scrollTop = l.scrollHeight; }
+function addChat(m, live = true) {
+  const ul = $('chatLog');
+  const li = document.createElement('li');
+  if (m.sys) { li.className = 'sys'; li.textContent = m.text; }
+  else {
+    const b = document.createElement('b');
+    b.textContent = (m.id === myId ? 'You' : m.nick) + ': ';
+    b.style.color = m.color;
+    li.append(b, m.text);
+    if (live) bubble(m.id, m.text);
+  }
+  ul.appendChild(li);
+  while (ul.children.length > 50) ul.firstChild.remove();
+  scrollChat();
+  if (live && !chatVisible() && !m.sys && m.id !== myId) setUnread(unread + 1);
+}
+function bubble(id, text) {
+  const e = ents.get(id);
+  if (!e) return;
+  e.bubble?.remove();
+  const d = document.createElement('div');
+  d.className = 'bubble';
+  d.textContent = text.length > 60 ? text.slice(0, 58) + '…' : text;
+  e.tag.appendChild(d);
+  e.bubble = d;
+  setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 4500);
+}
+socket.on('chat', (m) => addChat(m));
+socket.on('chatHistory', (list) => { $('chatLog').replaceChildren(); list.forEach((m) => addChat(m, false)); setUnread(0); });
+
 function spectateText() {
   return roomInfo?.players.find((p) => p.id === myId) && joinedMidGame ? 'Match in progress · you play next game' : 'You are out · spectating';
 }
@@ -853,6 +890,9 @@ function conn(text) {
   if (text) $('connText').textContent = text;
 }
 function dropRoomState() {
+  $('chatLog').replaceChildren();
+  setUnread(0);
+  $('lobby').classList.remove('chat-open');
   roomInfo = null;
   snap = null;
   myPos = null;
@@ -894,7 +934,7 @@ socket.on('lobby', (info) => {
   roomInfo = info;
   for (const [id, e] of ents) {
     const p = info.players.find((x) => x.id === id);
-    if (!p || p.color + p.hat !== e.key) dropEnt(id);
+    if (!p || lookKey(p) !== e.key) dropEnt(id);
   }
   renderLobby();
   if (was !== info.state) updateScreens();
@@ -1061,9 +1101,12 @@ function frame(now) {
       const tx = mine ? myPos.x : e.t.x, tz = mine ? myPos.z : e.t.z, ta = mine ? myPos.aim : e.t.a;
       if (e.pop < 0.05 || mine) { e.x = tx; e.z = tz; e.a = ta; }
       else { e.x += (tx - e.x) * k; e.z += (tz - e.z) * k; e.a += Math.atan2(Math.sin(ta - e.a), Math.cos(ta - e.a)) * k; }
-      const moving = Math.hypot(tx - e.x, tz - e.z) > 0.02 || (mine && posDirty);
-      e.bob = (e.bob || 0) + rdt * (moving ? 14 : 3);
-      e.g.position.set(e.x, moving ? Math.abs(Math.sin(e.bob)) * 0.08 : Math.sin(e.bob) * 0.02, e.z);
+      const moving = mine ? walking : Math.hypot(e.x - (e.px ?? e.x), e.z - (e.pz ?? e.z)) > rdt * 0.6;
+      e.px = e.x; e.pz = e.z;
+      e.walk = (e.walk || 0) + ((moving ? 1 : 0) - (e.walk || 0)) * Math.min(1, rdt * 10);
+      e.bob = (e.bob || 0) + rdt * (4 + e.walk * 9);
+      e.g.position.set(e.x, Math.abs(Math.sin(e.bob)) * 0.06 * e.walk + Math.sin(e.bob) * 0.015 * (1 - e.walk), e.z);
+      animateCharacter(e.g, now / 1000, e.bob, e.walk);
       e.g.rotation.set(0, -e.a, 0);
       e.line.visible = allAim || (id === myId && s === 'plan');
       e.line.material.opacity = s === 'lobby' ? 0.35 : 0.9;
@@ -1072,7 +1115,7 @@ function frame(now) {
     vproj.set(p.x, p.y + 1.9, p.z).project(camera);
     e.tag.style.transform = `translate(${((vproj.x + 1) / 2) * innerWidth}px, ${((1 - vproj.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
   }
-  for (const c of showcase.children) c.rotation.y += rdt * 0.8;
+  for (const c of showcase.children) { c.rotation.y += rdt * 0.6; animateCharacter(c, now / 1000, 0, 0); }
   animateTiles(dt, now / 1000);
   animateWorld(rdt, now / 1000);
   animateFx(dt);

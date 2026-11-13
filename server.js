@@ -95,6 +95,7 @@ io.on('connection', (socket) => {
   let room = null;
   const fast = limiter(30, 40);
   const slow = limiter(4, 8);
+  const talk = limiter(1, 4); // chat: burst of 4, then 1 msg/s
   socket.join('browser');
   socket.emit('rooms', roomList());
 
@@ -114,6 +115,7 @@ io.on('connection', (socket) => {
     socket.join(r.id);
     r.addPlayer(socket.id, cleanNick(nick), look);
     socket.emit('joined', { roomId: r.id, you: socket.id });
+    socket.emit('chatHistory', r.chat);
     r.broadcastLobby();
     pushList();
   }
@@ -152,6 +154,11 @@ io.on('connection', (socket) => {
   on('start', slow, () => isHost() && room.start());
   on('addBot', slow, () => isHost() && room.addBot());
   on('removeBots', slow, () => isHost() && room.removeBots());
+  on('chat', talk, (text) => {
+    if (!room || typeof text !== 'string') return;
+    const t = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 140);
+    if (t) room.say(socket.id, t);
+  });
   on('pos', fast, (pos) => room && room.setPos(socket.id, obj(pos)));
   socket.on('disconnect', () => { try { leave(); } catch (err) { log('leave error', err); } });
 });

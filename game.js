@@ -1,4 +1,4 @@
-import { buildTiles, worldToAxial, axialToWorld, tileKey, ARENA_RADIUS, COLORS, HATS } from './public/hex.js';
+import { buildTiles, worldToAxial, axialToWorld, tileKey, ARENA_RADIUS, COLORS, HATS, FACES, OUTFITS, BACKS } from './public/hex.js';
 
 export const MAX_PLAYERS = 8;
 
@@ -18,6 +18,7 @@ const RANGE = 40;
 const MIN_RING = 1;
 const MAX_ROUNDS = 10; // stops endless stalemates (e.g. AFK players who never get hit)
 const BOT_SPEED = 3;
+const CHAT_KEEP = 30;
 const BOT_NAMES = ['Bolt', 'Sparky', 'Gizmo', 'Rusty', 'Zapper', 'Cog', 'Widget', 'Ratchet'];
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -27,6 +28,9 @@ export function cleanLook(look = {}) {
   return {
     color: COLORS.includes(look.color) ? look.color : COLORS[Math.floor(Math.random() * COLORS.length)],
     hat: HATS.includes(look.hat) ? look.hat : 'none',
+    face: FACES.includes(look.face) ? look.face : 'visor',
+    outfit: OUTFITS.includes(look.outfit) ? look.outfit : 'classic',
+    back: BACKS.includes(look.back) ? look.back : 'none',
   };
 }
 
@@ -46,6 +50,7 @@ export class Room {
     this.roundDead = new Set();
     this.winner = null;
     this.botSeq = 0;
+    this.chat = []; // last CHAT_KEEP messages, replayed to late joiners
     this.timer = setInterval(() => this.tick(), 1000 / TICK);
   }
 
@@ -63,7 +68,7 @@ export class Room {
   lobbyInfo() {
     return {
       id: this.id, name: this.name, state: this.state === 'lobby' ? 'lobby' : 'playing', hostId: this.hostId,
-      players: [...this.players.values()].map((p) => ({ id: p.id, nick: p.nick, color: p.color, hat: p.hat, bot: p.isBot, wins: p.wins, kills: p.kills })),
+      players: [...this.players.values()].map((p) => ({ id: p.id, nick: p.nick, color: p.color, hat: p.hat, face: p.face, outfit: p.outfit, back: p.back, bot: p.isBot, wins: p.wins, kills: p.kills })),
     };
   }
 
@@ -79,12 +84,31 @@ export class Room {
       x: spot.x, z: spot.z, aim: Math.atan2(-spot.z, -spot.x), bot: null,
     });
     if (!this.hostId && !isBot) this.hostId = id;
+    if (!isBot) this.system(`${nick} joined`);
+  }
+
+  // ------------------------------------------------------------ chat
+  pushChat(msg) {
+    this.chat.push(msg);
+    if (this.chat.length > CHAT_KEEP) this.chat.shift();
+    this.io.to(this.id).emit('chat', msg);
+  }
+
+  say(id, text) {
+    const p = this.players.get(id);
+    if (!p || !text) return;
+    this.pushChat({ id, nick: p.nick, color: p.color, text, t: Date.now() });
+  }
+
+  system(text) {
+    this.pushChat({ sys: 1, text, t: Date.now() });
   }
 
   addBot() {
     if (this.state !== 'lobby' || this.players.size >= MAX_PLAYERS) return;
     const n = ++this.botSeq;
-    this.addPlayer('bot-' + n, BOT_NAMES[(n - 1) % BOT_NAMES.length] + ' (bot)', { hat: HATS[Math.floor(Math.random() * HATS.length)] }, true);
+    const pick = (a) => a[Math.floor(Math.random() * a.length)];
+    this.addPlayer('bot-' + n, BOT_NAMES[(n - 1) % BOT_NAMES.length] + ' (bot)', { hat: pick(HATS), face: pick(FACES), outfit: pick(OUTFITS), back: pick(BACKS) }, true);
     this.broadcastLobby();
     this.onChange();
   }
@@ -97,6 +121,7 @@ export class Room {
   }
 
   removePlayer(id) {
+    const gone = this.players.get(id);
     this.players.delete(id);
     const humans = [...this.players.values()].filter((p) => !p.isBot);
     if (!humans.length) {
@@ -104,7 +129,11 @@ export class Room {
       this.onEmpty();
       return;
     }
-    if (this.hostId === id) this.hostId = humans[0].id;
+    if (gone) this.system(`${gone.nick} left`);
+    if (this.hostId === id) {
+      this.hostId = humans[0].id;
+      this.system(`${humans[0].nick} is now the host`);
+    }
     this.broadcastLobby();
   }
 

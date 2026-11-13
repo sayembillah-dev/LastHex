@@ -31,10 +31,8 @@
     <p class="sub">Hide. Aim. Fire. Last one standing wins.</p>
     <input id="nick" maxlength="16" placeholder="Your nickname" autocomplete="nickname" enterkeyhint="go" aria-label="Nickname">
     <div id="custom">
-      <div class="label-sm">Color</div>
-      <div id="colors" class="opts"></div>
-      <div class="label-sm">Hat</div>
-      <div id="hats" class="opts"></div>
+      <div id="lookTabs" class="tabs" role="tablist"></div>
+      <div id="lookOpts" class="opts"></div>
     </div>
     <div class="row">
       <button id="quick" class="primary">Quick Play</button>
@@ -62,6 +60,7 @@
         <h2 id="roomName"></h2>
         <p class="sub">Code <b id="roomCode"></b> · <button id="copyLink" class="small">Invite</button></p>
       </div>
+      <button id="chatBtn" class="small" aria-label="Open chat">💬<span id="chatBadge" class="badge hidden"></span></button>
       <button id="moreToggle" class="small" aria-label="Show or hide room details">☰</button>
     </div>
     <ul id="playerList"></ul>
@@ -75,6 +74,13 @@
       <button id="leave" class="small">Leave</button>
     </div>
     <div id="customSlot" class="hidden"></div>
+    <div id="chatSec">
+      <ul id="chatLog" aria-live="polite" aria-label="Room chat"></ul>
+      <form id="chatForm" autocomplete="off">
+        <input id="chatInput" maxlength="140" placeholder="Say something…" enterkeyhint="send" aria-label="Chat message">
+        <button class="small" type="submit">Send</button>
+      </form>
+    </div>
     <p id="lobbyHint" class="sub more"></p>
   </section>
 
